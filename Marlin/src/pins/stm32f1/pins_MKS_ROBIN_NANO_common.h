@@ -181,7 +181,7 @@
 //
 // LCD / Controller
 //
-#define BEEPER_PIN                          PC5
+#define BEEPER_PIN                          -1
 
 //
 // TFT with FSMC interface
