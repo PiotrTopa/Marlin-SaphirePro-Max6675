@@ -3645,10 +3645,12 @@ void Temperature::disable_all_heaters() {
     static uint8_t max_tc_errors[MAX_TC_COUNT] = { 0 };
     static millis_t next_max_tc_ms[MAX_TC_COUNT] = { 0 };
 
+    TERN(HAS_MAX31855, uint32_t, uint16_t) max_tc_temp_last = THERMO_TEMP(hindex);
+
     // Return last-read value between readings
     const millis_t ms = millis();
     if (PENDING(ms, next_max_tc_ms[hindex]))
-      return THERMO_TEMP(hindex);
+      return max_tc_temp_last;
 
     next_max_tc_ms[hindex] = ms + MAXTC_HEAT_INTERVAL;
 
@@ -3689,7 +3691,7 @@ void Temperature::disable_all_heaters() {
 
     // Handle an error. If there have been more than THERMOCOUPLE_MAX_ERRORS, send an error over serial.
     // Either way, return the TMAX for the thermocouple to trigger a maxtemp_error()
-    if (max_tc_temp & MAX_TC_ERROR_MASK) {
+    if (max_tc_temp & MAX_TC_ERROR_MASK  || (max_tc_temp >> MAX_TC_DISCARD_BITS) < 25 || (max_tc_temp >> MAX_TC_DISCARD_BITS) > 4000) {
       max_tc_errors[hindex]++;
 
       if (max_tc_errors[hindex] > THERMOCOUPLE_MAX_ERRORS) {
@@ -3719,6 +3721,10 @@ void Temperature::disable_all_heaters() {
 
         // Set thermocouple above max temperature (TMAX)
         max_tc_temp = THERMO_SEL(TEMP_SENSOR_0_MAX_TC_TMAX, TEMP_SENSOR_1_MAX_TC_TMAX, TEMP_SENSOR_2_MAX_TC_TMAX) << (MAX_TC_DISCARD_BITS + 1);
+      } else {
+        SERIAL_ECHOPGM("Temp reading fault (", max_tc_temp, " -> ",  max_tc_temp_last, "): ", max_tc_errors[hindex]);
+        SERIAL_EOL();
+        return max_tc_temp_last;
       }
     }
     else {
@@ -3733,7 +3739,7 @@ void Temperature::disable_all_heaters() {
     #endif
 
     THERMO_TEMP(hindex) = max_tc_temp;
-
+    
     return max_tc_temp;
   }
 
