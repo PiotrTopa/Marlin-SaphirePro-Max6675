@@ -79,6 +79,7 @@ typedef struct {
        #if ENABLED(BINARY_FILE_TRANSFER)
          , binary_mode:1        // Use the serial line buffer as BinaryStream input
        #endif
+       , hex_write_mode:1       // Write hex-encoded data to the open file
     ;
 } card_flags_t;
 

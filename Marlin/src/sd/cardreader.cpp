@@ -966,6 +966,26 @@ void CardReader::report_status(TERN_(QUIETER_AUTO_REPORT_SD_STATUS, const bool i
 // Write a command to the log file
 //
 void CardReader::write_command(char * const buf) {
+  if (flag.hex_write_mode) {
+    uint8_t *d = (uint8_t *)buf;
+    char *s = buf;
+    while (*s) {
+      char c = *s++;
+      if (c <= ' ') continue;
+      uint8_t v1 = (c >= '0' && c <= '9') ? c - '0' : (c >= 'A' && c <= 'F') ? c - 'A' + 10 : (c >= 'a' && c <= 'f') ? c - 'a' + 10 : 255;
+      if (v1 == 255) continue;
+      while (*s && *s <= ' ') s++;
+      if (!*s) break;
+      c = *s++;
+      uint8_t v2 = (c >= '0' && c <= '9') ? c - '0' : (c >= 'A' && c <= 'F') ? c - 'A' + 10 : (c >= 'a' && c <= 'f') ? c - 'a' + 10 : 255;
+      if (v2 == 255) continue;
+      *d++ = (v1 << 4) | v2;
+    }
+    myfile.write(buf, d - (uint8_t*)buf);
+    if (myfile.writeError) SERIAL_ERROR_MSG(STR_SD_ERR_WRITE_TO_FILE);
+    return;
+  }
+
   char *begin = buf,
        *npos = nullptr,
        *end = buf + strlen(buf) - 1;
@@ -1112,7 +1132,7 @@ void CardReader::write_command(char * const buf) {
 void CardReader::closefile(const bool store_location/*=false*/) {
   myfile.sync();
   myfile.close();
-  flag.saving = flag.logging = false;
+  flag.saving = flag.logging = flag.hex_write_mode = false;
   sdpos = 0;
 
   #if DISABLED(SDCARD_READONLY)

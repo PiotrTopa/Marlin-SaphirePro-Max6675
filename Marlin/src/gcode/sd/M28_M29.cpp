@@ -43,28 +43,40 @@
 void GcodeSuite::M28() {
 
   #if ENABLED(BINARY_FILE_TRANSFER)
-
     bool binary_mode = false;
-    char *p = parser.string_arg;
-    if (p[0] == 'B' && NUMERIC(p[1])) {
-      binary_mode = p[1] > '0';
+  #endif
+  bool hex_mode = false;
+  char *p = parser.string_arg;
+
+  for (;;) {
+    #if ENABLED(BINARY_FILE_TRANSFER)
+      if (p[0] == 'B' && NUMERIC(p[1])) {
+        binary_mode = p[1] > '0';
+        p += 2;
+        while (*p == ' ') ++p;
+        continue;
+      }
+    #endif
+    if (p[0] == 'U' && NUMERIC(p[1])) {
+      hex_mode = p[1] > '0';
       p += 2;
       while (*p == ' ') ++p;
+      continue;
     }
+    break;
+  }
 
+  #if ENABLED(BINARY_FILE_TRANSFER)
     // Binary transfer mode
     if ((card.flag.binary_mode = binary_mode)) {
       SERIAL_ECHO_MSG("Switching to Binary Protocol");
       TERN_(HAS_MULTI_SERIAL, card.transfer_port_index = queue.ring_buffer.command_port().index);
+      return;
     }
-    else
-      card.openFileWrite(p);
-
-  #else
-
-    card.openFileWrite(parser.string_arg);
-
   #endif
+
+  card.flag.hex_write_mode = hex_mode;
+  card.openFileWrite(p);
 }
 
 /**
